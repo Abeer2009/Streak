@@ -14,3 +14,7 @@ Local build (needs Node 20, JDK 17, Android Studio):
 APK lands in android/app/build/outputs/apk/debug/app-debug.apk
 
 The game itself is www/index.html. Edit it, push again, and a new APK builds.
+
+## Mini-games and admin controls
+
+The daily mission can be set to Asteroid Dodge, Alien Pong, Star Catcher, or a daily rotation from the local Admin panel. The panel also lets you set the current streak, replay today’s mission, and reset the device back to onboarding. These controls are local prototype tools and do not require a server.

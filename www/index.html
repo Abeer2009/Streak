@@ -69,10 +69,11 @@ select option{background:#150f48}
  <p class="mut" id="sd"></p>
  <div class="bar" style="margin-top:8px"><i id="pb"></i></div><p class="mut" id="nx"></p><div style="height:24vh"></div>
  <div class="chips" id="ch"></div>
- <div class="card"><div class="mut">Today’s mission</div><h2>Asteroid Dodge</h2><p class="mut" id="md"></p><button class="b" id="pl"></button><p class="mut" id="cd" style="text-align:center;margin-top:10px"></p></div>
+  <div class="card"><div class="mut">Today’s mission</div><h2 id="mn">Asteroid Dodge</h2><p class="mut" id="md"></p><button class="b" id="pl"></button><p class="mut" id="cd" style="text-align:center;margin-top:10px"></p></div>
  <div class="card"><div id="tb"></div><div id="lb"></div></div>
  <div class="card"><div class="cn"><button id="cp">‹</button><b id="cmn"></b><button id="cn">›</button></div><div id="cg"></div><p class="mut" id="cst"></p><p id="ci" style="min-height:22px"></p></div>
- <div class="card"><div class="mut">Prototype tools: jump to any stage</div><select id="jp"></select><button class="b g" id="dm">Fill sample history (demo)</button><p class="mut" id="rc" style="margin-top:8px"></p></div>
+  <div class="card"><div class="mut">Prototype tools: jump to any stage</div><select id="jp"></select><button class="b g" id="dm">Fill sample history (demo)</button><p class="mut" id="rc" style="margin-top:8px"></p></div>
+  <div class="card"><div class="cn"><div><div class="mut">Admin panel</div><b>Local test controls</b></div><button id="at">Open</button></div><div id="ap" style="display:none"><p class="mut">These controls affect this device only.</p><label class="mut">Daily game<select id="ag"></select></label><label class="mut">Current streak<input id="as" type="number" min="0" max="999999" inputmode="numeric" placeholder="Leave blank to keep it"></label><button class="b" id="aa">Apply settings</button><button class="b g" id="rt">Reset today’s mission</button><button class="b g" id="ar">Reset everything</button><p class="mut" id="ae" style="margin-top:8px"></p></div></div>
  </div>
  <div id="fh"><div id="ft"></div><button class="b g" id="fb">Back to missions</button></div>
 </div>
@@ -112,6 +113,13 @@ const S=[
 [2101,'Edge of the Universe','The glowing wall of the early cosmos','dots','#ffb37a','#fff2b0','#1a0b05'],
 [2251,'Other Universes','New physics, new colors, no end','spiral,web','#ff6bf2','#6bffe8','#12051a']];
 const MODS={wave:'Shockwaves sweep up the screen. Be in the gap.',dilate:'Time dilation. The world speeds up and slows down.',dim:'Wrapped in red dust. You can only see near your ship.'};
+const GAMES=[
+ {id:'asteroid',name:'Asteroid Dodge',desc:'Dodge rocks, grab stars. Survive for 40 seconds.'},
+ {id:'pong',name:'Alien Pong',desc:'Return the energy ball and beat the alien goalie to five points.'},
+ {id:'catch',name:'Star Catcher',desc:'Catch glowing stars, avoid the alien mines, and keep your hull intact.'}
+];
+const gameById=id=>GAMES.find(g=>g.id==id)||GAMES[0];
+function gameForDay(){const P=store.get(),choice=P&&P.dailyGame;if(choice=='auto')return GAMES[hash('game'+UTC())%GAMES.length];return gameById(choice||'asteroid')}
 const stg=d=>{let i=0;S.forEach((s,k)=>{if(d>=s[0])i=k});return i};
 let DEMO=0,cur=0,raf=0,gr=0,tab=0;
 
@@ -143,7 +151,7 @@ $('#go').onclick=()=>{
  const n=$('#un').value.replace(/[^\w]/g,'');
  if(n.length<3){$('#oe').textContent='Use at least 3 letters or numbers for your username.';return}
  const c=C[cs.value],r=rng(Date.now()),ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',rc=Array.from({length:8},()=>ch[r()*32|0]).join('');
- store.set({name:n,cc:c.n,rg:c.r[rs.value].n,days:0,streak:0,last:'',played:{},rc:rc.slice(0,4)+'-'+rc.slice(4)});
+  store.set({name:n,cc:c.n,rg:c.r[rs.value].n,days:0,streak:0,last:'',played:{},rc:rc.slice(0,4)+'-'+rc.slice(4),dailyGame:'asteroid'});
  show('hm');refresh()};
 
 /* ---------- journey scene ---------- */
@@ -238,12 +246,12 @@ function frame(t){
 /* ---------- home ---------- */
 const day=()=>{const P=store.get();return DEMO||(P.days+(P.played[UTC()]===undefined?1:0))};
 function refresh(){
- const P=store.get(),d=day(),sd=DEMO||P.days+1,i=stg(sd),s=S[i],n=S[i+1],td=P.played[UTC()],drift=P.last&&P.last!=UTC()&&P.last!=UTC(-1);LOC=loc();RG=P.rg;
+ const P=store.get(),d=day(),sd=DEMO||P.days+1,i=stg(sd),s=S[i],n=S[i+1],td=P.played[UTC()],drift=P.last&&P.last!=UTC()&&P.last!=UTC(-1),gm=gameForDay();LOC=loc();RG=P.rg;
  $('#dy').textContent=d.toLocaleString();$('#st').textContent=s[1];$('#sd').textContent=s[2];
  const a=s[0],b=n?n[0]:a+400;zt=i+Math.max(0,Math.min(1,(sd-a)/(b-a)));$('#pb').style.width=Math.max(2,Math.min(100,(sd-a)/(b-a)*100))+'%';
  $('#nx').textContent=n?`Next: ${n[1]} in ${n[0]-sd} day${n[0]-sd>1?'s':''}`:'You made it to the final frontier.';
  $('#ch').innerHTML=[drift?'Drifting. Play to relight your engines':P.streak+'-day streak',P.rg+', '+P.cc,DEMO?'Demo day':P.name].map(c=>`<span class="chip">${c}</span>`).join('');
- const mm=S[stg(d)][7];$('#md').textContent=mm?MODS[mm]:'Dodge asteroids, grab stars. 40 seconds, same sky for everyone.';
+ const mm=S[stg(d)][7];$('#mn').textContent=gm.name;$('#md').textContent=gm.desc+(mm?' '+MODS[mm]:'');
  $('#pl').textContent=td===undefined?'Launch mission':'Practice run (doesn’t count)';
  $('#rc').textContent='Recovery code: '+P.rc+'. Save it to restore your account on a new phone.';
  renderLB();renderCal()}
@@ -259,6 +267,12 @@ $('#cp').onclick=()=>{if(cm>-24){cm--;renderCal()}};
 $('#cn').onclick=()=>{if(cm<0){cm++;renderCal()}};
 $('#cg').onclick=e=>{const k=e.target.dataset.k;if(!k)return;const P=store.get(),s=P.played[k];$('#ci').textContent=s!==undefined?`${k}: mission flown, score ${s}`:k>UTC()?`${k}: not flown yet`:`${k}: no mission flown`};
 $('#dm').onclick=()=>{const P=store.get(),r=rng(7);for(let i=1;i<=12;i++)if(i!=5&&i!=6)P.played[UTC(-i)]=Math.round(300+r()*500);P.days=Object.keys(P.played).length;P.streak=4;P.last=P.played[UTC()]!==undefined?UTC():UTC(-1);store.set(P);refresh()};
+const ag=$('#ag'),as=$('#as'),ae=$('#ae');
+ag.innerHTML='<option value="asteroid">Asteroid Dodge</option><option value="pong">Alien Pong</option><option value="catch">Star Catcher</option><option value="auto">Rotate games daily</option>';
+$('#at').onclick=()=>{const open=$('#ap').style.display!='none';$('#ap').style.display=open?'none':'block';$('#at').textContent=open?'Open':'Close';if(!open){const P=store.get();ag.value=P.dailyGame||'asteroid';as.value='';ae.textContent=''}};
+$('#aa').onclick=()=>{const P=store.get(),n=as.value.trim();P.dailyGame=ag.value;if(n!==''){P.streak=Math.max(0,Math.min(999999,Number(n)||0));P.streakOverride=1}store.set(P);refresh();ae.textContent='Settings applied on this device.'};
+$('#rt').onclick=()=>{const P=store.get();delete P.played[UTC()];P.days=Object.keys(P.played).length;P.last=P.days?Object.keys(P.played).sort().pop():'';store.set(P);refresh();ae.textContent='Today’s mission is ready to play again.'};
+$('#ar').onclick=()=>{if(!confirm('Reset this device and return to onboarding?'))return;G=null;DEMO=0;mem.p=null;try{localStorage.removeItem('lwo')}catch(e){}$('#un').value='';show('ob');ae.textContent=''};
 $('#pl').onclick=()=>startGame();
 $('#fsb').onclick=()=>{FS=1;$('#hm').scrollTop=0;$('#hm').classList.add('fs');$('#ft').innerHTML='<b style="font-size:20px">'+$('#st').textContent+'</b><p class="mut">Day '+$('#dy').textContent+'. '+$('#sd').textContent+'</p>'};
 $('#fb').onclick=()=>{FS=0;$('#hm').classList.remove('fs')};
@@ -286,17 +300,34 @@ function renderLB(){
 const gc=$('#gc'),gq=gc.getContext('2d');gq.scale(2,2);
 const BS=Array.from({length:70},()=>[Math.random()*360,Math.random()*640,Math.random()*.8+.2]);
 let G=null,acc=0,last=0;
-function startGame(){
- const mod=S[stg(day())][7]||'',r=rng(hash('lwo'+UTC())),ev=[],walls=[];
- for(let t=.8;t<42;t+=.32+r()*.45)ev.push({t,x:14+r()*332,r:9+r()*13,v:150+r()*110+t*2.5,star:r()<.22,y:-30});
- if(mod=='wave')for(let t=8;t<40;t+=8)walls.push({t,gx:60+r()*240,hit:0,y:700});
- G={ev,walls,mod,x:180,tx:180,w:0,t:0,stars:0,hp:3,i:0,live:[],run:0,over:0,flash:0};
+function openGame(title,help){
  show('g');
  const bw=$('#g').clientWidth,bh=$('#g').clientHeight,w=Math.min(bw,bh*9/16);gc.style.width=w+'px';gc.style.height=w*16/9+'px';
  const ov=$('#ov');ov.style.display='flex';
- ov.innerHTML=`<h2>Asteroid Dodge</h2><p>Drag to steer. Dodge rocks, grab ★.</p>${mod?'<p style="color:#ffb37a">'+MODS[mod]+'</p>':''}<p class="mut" style="margin-top:18px">Tap to start</p>`;
+ ov.innerHTML=`<h2>${title}</h2><p>${help}</p><p class="mut" style="margin-top:18px">Tap to start</p>`;
  ov.onclick=()=>{ov.style.display='none';G.run=1;last=performance.now();acc=0};
- requestAnimationFrame(loop)}
+ requestAnimationFrame(loop)
+}
+function startGame(){
+ const gm=gameForDay();
+ if(gm.id=='pong')return startPong();
+ if(gm.id=='catch')return startCatch();
+ return startAsteroid()
+}
+function startAsteroid(){
+ const mod=S[stg(day())][7]||'',r=rng(hash('lwo'+UTC())),ev=[],walls=[];
+ for(let t=.8;t<42;t+=.32+r()*.45)ev.push({t,x:14+r()*332,r:9+r()*13,v:150+r()*110+t*2.5,star:r()<.22,y:-30});
+ if(mod=='wave')for(let t=8;t<40;t+=8)walls.push({t,gx:60+r()*240,hit:0,y:700});
+ G={type:'asteroid',ev,walls,mod,x:180,tx:180,w:0,t:0,stars:0,hp:3,i:0,live:[],run:0,over:0,flash:0};
+ openGame('Asteroid Dodge','Drag to steer. Dodge rocks, grab ★.'+(mod?` ${MODS[mod]}`:''))}
+function startPong(){
+ G={type:'pong',x:180,tx:180,ai:180,ball:{x:180,y:320,vx:190,vy:150},score:0,alien:0,t:0,run:0,over:0,flash:0};
+ openGame('Alien Pong','Drag your paddle. Return the energy ball and score five points before the alien.')}
+function startCatch(){
+ const r=rng(hash('catch'+UTC())),ev=[];
+ for(let t=.7;t<40;t+=.42+r()*.36)ev.push({t,x:18+r()*324,v:150+r()*90,good:r()<.68,r:7+r()*4,y:-20});
+ G={type:'catch',ev,x:180,tx:180,t:0,stars:0,hp:3,i:0,live:[],run:0,over:0,flash:0};
+ openGame('Star Catcher','Drag to steer. Catch the glowing stars and avoid the alien mines.')}
 const mv=e=>{if(!G)return;const r=gc.getBoundingClientRect();G.tx=Math.max(14,Math.min(346,(e.clientX-r.left)/r.width*360))};
 gc.addEventListener('pointermove',mv);gc.addEventListener('pointerdown',mv);
 function loop(ts){
@@ -305,6 +336,11 @@ function loop(ts){
  if(G.run){acc+=dt;while(acc>=1/60&&!G.over){step(1/60);acc-=1/60}}
  draw();if(!G.over)requestAnimationFrame(loop)}
 function step(d){
+ if(G.type=='pong')return stepPong(d);
+ if(G.type=='catch')return stepCatch(d);
+ return stepAsteroid(d)
+}
+function stepAsteroid(d){
  const g=G;g.t+=d;const m=g.mod=='dilate'?1+.55*Math.sin(g.t*1.1):1,sd=d*m;g.w+=sd;
  g.x+=(g.tx-g.x)*Math.min(1,d*14);
  while(g.i<g.ev.length&&g.ev[g.i].t<=g.w)g.live.push(g.ev[g.i++]);
@@ -316,6 +352,8 @@ function step(d){
  if(g.t>=40)end()}
 function end(){const g=G;g.over=1;draw();finish(Math.round(g.t*10)+g.stars*50+Math.max(0,g.hp)*100)}
 function draw(){
+ if(G.type=='pong')return drawPong();
+ if(G.type=='catch')return drawCatch();
  const g=G,x=gq,s=S[stg(day())];
  x.fillStyle=lg(x,0,0,0,640,s[6],'#07041f');x.fillRect(0,0,360,640);
  x.fillStyle='rgba(140,110,255,.1)';for(const[bx,by,r]of[[60,150,46],[300,330,34],[110,520,28]]){x.beginPath();x.arc(bx,by,r,0,7);x.fill()}
@@ -333,12 +371,44 @@ function draw(){
  if(g.flash>0){x.fillStyle=`rgba(255,80,160,${g.flash})`;x.fillRect(0,0,360,640);g.flash-=.016}
  if(g.mod=='dim'){const rg=x.createRadialGradient(g.x,560,60,g.x,560,210);rg.addColorStop(0,'rgba(8,0,0,0)');rg.addColorStop(1,'rgba(8,0,0,.97)');x.fillStyle=rg;x.fillRect(0,0,360,640)}
  for(let i=0;i<3;i++){x.fillStyle=i<g.hp?'#ff6fb1':'rgba(255,255,255,.18)';x.beginPath();x.arc(20+i*18,24,6,0,7);x.fill()}
- x.fillStyle='#fff';x.font='700 15px sans-serif';x.textAlign='right';x.fillText(Math.max(0,Math.ceil(40-g.t))+'s   '+(Math.round(g.t*10)+g.stars*50),348,29)}
+  x.fillStyle='#fff';x.font='700 15px sans-serif';x.textAlign='right';x.fillText(Math.max(0,Math.ceil(40-g.t))+'s   '+(Math.round(g.t*10)+g.stars*50),348,29)}
+
+function resetBall(g,dir){g.ball={x:180,y:320,vx:(dir||1)*(170+Math.random()*55),vy:(Math.random()<.5?-1:1)*(135+Math.random()*55)}}
+function stepPong(d){
+ const g=G,b=g.ball;g.t+=d;g.x+=(g.tx-g.x)*Math.min(1,d*16);g.ai+=(b.x-g.ai)*Math.min(1,d*3.2);g.ai=Math.max(48,Math.min(312,g.ai));
+ b.x+=b.vx*d;b.y+=b.vy*d;
+ if(b.x<10||b.x>350){b.x=Math.max(10,Math.min(350,b.x));b.vx*=-1}
+ if(b.y<42&&b.y>24&&Math.abs(b.x-g.ai)<52&&b.vy<0){b.y=44;b.vy=Math.abs(b.vy)*1.04;b.vx+=(b.x-g.ai)*2.1}
+ if(b.y>572&&b.y<604&&Math.abs(b.x-g.x)<52&&b.vy>0){b.y=570;b.vy=-Math.abs(b.vy)*1.04;b.vx+=(b.x-g.x)*2.1}
+ if(b.y<-18){g.score++;if(g.score>=5)return endPong();resetBall(g,1)}
+ if(b.y>658){g.alien++;g.flash=.35;if(g.alien>=5)return endPong();resetBall(g,-1)}
+ if(g.t>=40)endPong()
+}
+function endPong(){const g=G;g.over=1;draw();finish(Math.max(0,g.score*220+(5-g.alien)*70+Math.round(g.t*2)))}
+function drawPong(){
+ const g=G,x=gq,b=g.ball,s=S[stg(day())];x.fillStyle=lg(x,0,0,0,640,s[6],'#07041f');x.fillRect(0,0,360,640);
+ x.fillStyle='rgba(140,110,255,.13)';for(const[bx,by,r]of[[60,150,46],[300,330,34],[110,520,28]]){x.beginPath();x.arc(bx,by,r,0,7);x.fill()}
+ x.strokeStyle='rgba(255,255,255,.2)';x.setLineDash([8,10]);x.beginPath();x.moveTo(15,320);x.lineTo(345,320);x.stroke();x.setLineDash([]);
+ x.fillStyle='#ff8ad0';x.fillRect(g.ai-48,30,96,12);x.fillStyle='#7ff0ff';x.fillRect(g.x-48,584,96,12);
+ x.fillStyle='#fff';x.beginPath();x.arc(b.x,b.y,9,0,7);x.fill();x.fillStyle='#4fe3ff';x.beginPath();x.arc(b.x,b.y,4,0,7);x.fill();
+ x.textAlign='center';x.font='800 30px sans-serif';x.fillStyle='#fff';x.fillText(g.score+'  :  '+g.alien,180,92);x.font='600 12px sans-serif';x.fillStyle='rgba(255,255,255,.7)';x.fillText('YOU',180,620);x.fillText('ALIEN',180,22);
+ x.textAlign='right';x.font='700 15px sans-serif';x.fillStyle='#fff';x.fillText(Math.max(0,Math.ceil(40-g.t))+'s',348,29);if(g.flash>0){x.fillStyle=`rgba(255,80,160,${g.flash})`;x.fillRect(0,0,360,640);g.flash-=.016}}
+function stepCatch(d){
+ const g=G;g.t+=d;g.x+=(g.tx-g.x)*Math.min(1,d*14);while(g.i<g.ev.length&&g.ev[g.i].t<=g.t)g.live.push(g.ev[g.i++]);
+ for(const o of g.live){o.y+=o.v*d;if(!o.dead&&o.y>535&&o.y<604&&Math.abs(o.x-g.x)<34){o.dead=1;if(o.good)g.stars++;else{g.hp--;g.flash=.4;if(g.hp<=0)return endCatch()}}}
+ g.live=g.live.filter(o=>!o.dead&&o.y<680);if(g.t>=40)endCatch()
+}
+function endCatch(){const g=G;g.over=1;draw();finish(Math.round(g.t*10)+g.stars*70+Math.max(0,g.hp)*100)}
+function drawCatch(){
+ const g=G,x=gq,s=S[stg(day())];x.fillStyle=lg(x,0,0,0,640,s[6],'#07041f');x.fillRect(0,0,360,640);x.fillStyle='rgba(255,255,255,.08)';for(let i=0;i<60;i++)x.fillRect((i*83)%360,(i*47+g.t*18)%640,2,2);
+ for(const o of g.live){if(o.good){x.fillStyle='rgba(255,216,77,.2)';x.beginPath();x.arc(o.x,o.y,18,0,7);x.fill();sparkle(x,o.x,o.y,12,'#ffd84d')}else{x.fillStyle='#ff5f9e';x.beginPath();x.arc(o.x,o.y,o.r,0,7);x.fill();x.strokeStyle='#ffd2e6';x.lineWidth=2;x.stroke()}}
+ x.fillStyle=lg(x,g.x-16,545,g.x+16,580,'#7ff0ff','#7a5cff');x.beginPath();x.moveTo(g.x,542);x.lineTo(g.x-18,580);x.lineTo(g.x,570);x.lineTo(g.x+18,580);x.closePath();x.fill();
+ for(let i=0;i<3;i++){x.fillStyle=i<g.hp?'#ff6fb1':'rgba(255,255,255,.18)';x.beginPath();x.arc(20+i*18,24,6,0,7);x.fill()}x.fillStyle='#fff';x.font='700 15px sans-serif';x.textAlign='right';x.fillText(Math.max(0,Math.ceil(40-g.t))+'s   ★ '+g.stars,348,29);if(g.flash>0){x.fillStyle=`rgba(255,80,160,${g.flash})`;x.fillRect(0,0,360,640);g.flash-=.016}}
 
 /* ---------- result ---------- */
 function finish(sc){
  const P=store.get(),d=UTC(),first=P.played[d]===undefined;
- if(first){P.played[d]=sc;P.days++;P.streak=P.last==UTC(-1)?P.streak+1:1;P.last=d;store.set(P)}
+ if(first){P.played[d]=sc;P.days++;if(P.streakOverride)delete P.streakOverride;else P.streak=P.last==UTC(-1)?P.streak+1:1;P.last=d;store.set(P)}
  showResult(sc,first)}
 function showResult(sc,first){
  const P=store.get(),dd=day(),s=S[stg(dd)],sc0=first?sc:P.played[UTC()];
