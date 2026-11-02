@@ -17,4 +17,4 @@ The game itself is www/index.html. Edit it, push again, and a new APK builds.
 
 ## Mini-games and admin controls
 
-The daily mission can be set to Asteroid Dodge, Alien Pong, Star Catcher, or a daily rotation from the local Admin panel. The panel also lets you set the current streak, replay today’s mission, and reset the device back to onboarding. These controls are local prototype tools and do not require a server.
+The daily mission can be set to Asteroid Dodge, Alien Pong, or a daily rotation from the local Admin panel. The panel also lets you set the current streak, jump to any stage, replay today’s mission, fill sample history, and reset the device back to onboarding. These controls are local prototype tools and do not require a server.
