@@ -114,7 +114,8 @@ const S=[
 const MODS={wave:'Shockwaves sweep up the screen. Be in the gap.',dilate:'Time dilation. The world speeds up and slows down.',dim:'Wrapped in red dust. You can only see near your ship.'};
 const GAMES=[
  {id:'asteroid',name:'Asteroid Dodge',desc:'Dodge rocks, grab stars. Survive for 40 seconds.'},
-  {id:'pong',name:'Alien Pong',desc:'Return the energy ball and beat the alien goalie to five points.'}
+ {id:'pong',name:'Alien Pong',desc:'Return the energy ball and beat the alien goalie to five points.'},
+ {id:'constellation',name:'Constellation Connect',desc:'Memorize a hidden constellation, then connect its stars in order. Score is time.'}
 ];
 const gameById=id=>GAMES.find(g=>g.id==id)||GAMES[0];
 function gameForDay(){const P=store.get(),choice=P&&P.dailyGame;if(choice=='auto')return GAMES[hash('game'+UTC())%GAMES.length];return gameById(choice||'asteroid')}
@@ -266,7 +267,7 @@ $('#cn').onclick=()=>{if(cm<0){cm++;renderCal()}};
 $('#cg').onclick=e=>{const k=e.target.dataset.k;if(!k)return;const P=store.get(),s=P.played[k];$('#ci').textContent=s!==undefined?`${k}: mission flown, score ${s}`:k>UTC()?`${k}: not flown yet`:`${k}: no mission flown`};
 $('#dm').onclick=()=>{const P=store.get(),r=rng(7);for(let i=1;i<=12;i++)if(i!=5&&i!=6)P.played[UTC(-i)]=Math.round(300+r()*500);P.days=Object.keys(P.played).length;P.streak=4;P.last=P.played[UTC()]!==undefined?UTC():UTC(-1);store.set(P);refresh()};
 const ag=$('#ag'),as=$('#as'),ae=$('#ae');
- ag.innerHTML='<option value="asteroid">Asteroid Dodge</option><option value="pong">Alien Pong</option><option value="auto">Rotate games daily</option>';
+ ag.innerHTML='<option value="asteroid">Asteroid Dodge</option><option value="pong">Alien Pong</option><option value="constellation">Constellation Connect</option><option value="auto">Rotate games daily</option>';
  $('#at').onclick=()=>{const open=$('#ap').style.display!='none';$('#ap').style.display=open?'none':'block';$('#at').textContent=open?'▼':'▲';$('#at').setAttribute('aria-expanded',String(!open));if(!open){const P=store.get();ag.value=GAMES.some(g=>g.id==P.dailyGame)||P.dailyGame=='auto'?P.dailyGame:'asteroid';as.value='';ae.textContent=''}};
 $('#aa').onclick=()=>{const P=store.get(),n=as.value.trim();P.dailyGame=ag.value;if(n!==''){P.streak=Math.max(0,Math.min(999999,Number(n)||0));P.streakOverride=1}store.set(P);refresh();ae.textContent='Settings applied on this device.'};
 $('#rt').onclick=()=>{const P=store.get();delete P.played[UTC()];P.days=Object.keys(P.played).length;P.last=P.days?Object.keys(P.played).sort().pop():'';store.set(P);refresh();ae.textContent='Today’s mission is ready to play again.'};
@@ -298,17 +299,19 @@ function renderLB(){
 const gc=$('#gc'),gq=gc.getContext('2d');gq.scale(2,2);
 const BS=Array.from({length:70},()=>[Math.random()*360,Math.random()*640,Math.random()*.8+.2]);
 let G=null,acc=0,last=0;
+const CONSTELLATION={name:'Leo',title:'The Lion',points:[[78,390],[105,365],[145,340],[190,320],[225,340],[250,370],[230,400],[210,450],[155,455],[110,430]]};
 function openGame(title,help){
  show('g');
  const bw=$('#g').clientWidth,bh=$('#g').clientHeight,w=Math.min(bw,bh*9/16);gc.style.width=w+'px';gc.style.height=w*16/9+'px';
  const ov=$('#ov');ov.style.display='flex';
  ov.innerHTML=`<h2>${title}</h2><p>${help}</p><p class="mut" style="margin-top:18px">Tap to start</p>`;
- ov.onclick=()=>{ov.style.display='none';G.run=1;last=performance.now();acc=0};
+ ov.onclick=()=>{ov.style.display='none';G.run=1;last=performance.now();acc=0;if(G.type=='constellation')beginConstellation()};
  requestAnimationFrame(loop)
 }
 function startGame(){
  const gm=gameForDay();
  if(gm.id=='pong')return startPong();
+ if(gm.id=='constellation')return startConstellation();
  return startAsteroid()
 }
 function startAsteroid(){
@@ -320,8 +323,22 @@ function startAsteroid(){
 function startPong(){
  G={type:'pong',x:180,tx:180,ai:180,ball:{x:180,y:320,vx:190,vy:150},score:0,alien:0,t:0,run:0,over:0,flash:0};
  openGame('Alien Pong','Drag your paddle. Return the energy ball and score five points before the alien.')}
-const mv=e=>{if(!G)return;const r=gc.getBoundingClientRect();G.tx=Math.max(14,Math.min(346,(e.clientX-r.left)/r.width*360))};
-gc.addEventListener('pointermove',mv);gc.addEventListener('pointerdown',mv);
+ function startConstellation(){
+  G={type:'constellation',points:CONSTELLATION.points.map(p=>[...p]),phase:'idle',t:0,elapsed:0,next:0,wrong:0,glow:0,flash:0,run:0,over:0};
+  openGame('Constellation Connect','Memorize the pattern, then tap stars 1 to 10 in the right order.');
+ }
+ function beginConstellation(){G.phase='memorize';G.t=0;G.next=0;G.wrong=0;G.elapsed=0;G.glow=0}
+ const pointerPosition=e=>{const r=gc.getBoundingClientRect();return[(e.clientX-r.left)/r.width*360,(e.clientY-r.top)/r.height*640]};
+ const mv=e=>{if(!G||G.type=='constellation')return;const[x]=pointerPosition(e);G.tx=Math.max(14,Math.min(346,x))};
+ const tap=e=>{if(!G)return;if(G.type=='constellation'){const[pX,pY]=pointerPosition(e);return tapConstellation(pX,pY)}mv(e)};
+ function tapConstellation(x,y){
+  const g=G;if(g.phase!='play')return;
+  let hit=-1;g.points.forEach((p,i)=>{if(Math.hypot(p[0]-x,p[1]-y)<22)hit=i});
+  if(hit<0)return;
+  if(hit==g.next){g.next++;g.glow=1;if(g.next==g.points.length){g.phase='done';g.t=0}}
+  else{g.wrong++;g.flash=.45}
+ }
+ gc.addEventListener('pointermove',mv);gc.addEventListener('pointerdown',tap);
 function loop(ts){
  if(!G||G.over)return;
  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
@@ -329,8 +346,17 @@ function loop(ts){
  draw();if(!G.over)requestAnimationFrame(loop)}
 function step(d){
  if(G.type=='pong')return stepPong(d);
+ if(G.type=='constellation')return stepConstellation(d);
  return stepAsteroid(d)
 }
+ function stepConstellation(d){
+  const g=G;
+  if(g.flash>0)g.flash=Math.max(0,g.flash-d);
+  if(g.glow>0)g.glow=Math.max(0,g.glow-d*.8);
+  if(g.phase=='memorize'){g.t+=d;if(g.t>=4){g.phase='play';g.t=0}return}
+  if(g.phase=='play'){g.t+=d;g.elapsed+=d;return}
+  if(g.phase=='done'){g.t+=d;if(g.t>=1.6){g.over=1;const score=Number((g.elapsed+g.wrong*.5).toFixed(2));finish(score,`Time ${score.toFixed(2)}s`)}}
+ }
 function stepAsteroid(d){
  const g=G;g.t+=d;const m=g.mod=='dilate'?1+.55*Math.sin(g.t*1.1):1,sd=d*m;g.w+=sd;
  g.x+=(g.tx-g.x)*Math.min(1,d*14);
@@ -344,6 +370,7 @@ function stepAsteroid(d){
 function end(){const g=G;g.over=1;draw();finish(Math.round(g.t*10)+g.stars*50+Math.max(0,g.hp)*100)}
 function draw(){
  if(G.type=='pong')return drawPong();
+ if(G.type=='constellation')return drawConstellation();
  const g=G,x=gq,s=S[stg(day())];
  x.fillStyle=lg(x,0,0,0,640,s[6],'#07041f');x.fillRect(0,0,360,640);
  x.fillStyle='rgba(140,110,255,.1)';for(const[bx,by,r]of[[60,150,46],[300,330,34],[110,520,28]]){x.beginPath();x.arc(bx,by,r,0,7);x.fill()}
@@ -383,19 +410,37 @@ function drawPong(){
  x.fillStyle='#fff';x.beginPath();x.arc(b.x,b.y,9,0,7);x.fill();x.fillStyle='#4fe3ff';x.beginPath();x.arc(b.x,b.y,4,0,7);x.fill();
  x.textAlign='center';x.font='800 30px sans-serif';x.fillStyle='#fff';x.fillText(g.score+'  :  '+g.alien,180,92);x.font='600 12px sans-serif';x.fillStyle='rgba(255,255,255,.7)';x.fillText('YOU',180,620);x.fillText('ALIEN',180,22);
  x.textAlign='right';x.font='700 15px sans-serif';x.fillStyle='#fff';x.fillText(Math.max(0,Math.ceil(40-g.t))+'s',348,29);if(g.flash>0){x.fillStyle=`rgba(255,80,160,${g.flash})`;x.fillRect(0,0,360,640);g.flash-=.016}}
+function drawConstellation(){
+ const g=G,x=gq,s=S[stg(day())];x.fillStyle=lg(x,0,0,0,640,s[6],'#030212');x.fillRect(0,0,360,640);
+ x.fillStyle='rgba(255,255,255,.7)';for(const p of BS){x.globalAlpha=.25+p[2]*.55;x.fillRect(p[0],p[1],p[2]*2,p[2]*2)}x.globalAlpha=1;
+ x.textAlign='center';x.fillStyle='#fff';x.font='800 22px sans-serif';x.fillText('Leo · The Lion',180,38);
+ x.font='600 12px sans-serif';x.fillStyle='rgba(255,255,255,.68)';
+ if(g.phase=='memorize')x.fillText('Memorize the constellation',180,62);
+ else if(g.phase=='done')x.fillText('Constellation complete',180,62);
+ else{x.fillText('Trace the stars in order',180,62);x.textAlign='right';x.fillStyle='#fff';x.fillText('Time '+g.elapsed.toFixed(2)+'s',348,29)}
+ const pts=g.points,complete=g.phase=='done',lineCount=g.phase=='memorize'||complete?pts.length:Math.max(0,g.next-1);
+ x.save();x.lineCap='round';x.lineJoin='round';
+ for(let i=0;i<lineCount;i++){const a=pts[i],b=pts[(i+1)%pts.length];x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.strokeStyle=complete?'#ffd86b':'#4fe3ff';x.lineWidth=complete?3:2.5;x.shadowColor=complete?'#ff9d42':'#4fe3ff';x.shadowBlur=complete?22:10;x.stroke()}
+ x.restore();
+ pts.forEach((p,i)=>{const active=g.phase=='memorize'||i<g.next||complete;x.fillStyle=active?'#fff':'rgba(255,255,255,.72)';x.shadowColor=i<g.next||complete?'#4fe3ff':'#fff';x.shadowBlur=i<g.next||complete?16:8;x.beginPath();x.arc(p[0],p[1],i==g.next&&g.phase=='play'?7:5,0,7);x.fill();x.shadowBlur=0;x.fillStyle=i<g.next||complete?'#7ff0ff':'#fff';x.font='700 12px sans-serif';x.fillText(i+1,p[0],p[1]-12)});
+ if(g.phase=='memorize'){x.font='800 42px sans-serif';x.fillStyle='#fff';x.fillText(Math.max(1,Math.ceil(4-g.t)),180,560)}
+ if(g.phase=='play'){x.font='600 13px sans-serif';x.fillStyle='rgba(255,255,255,.72)';x.fillText('Next star: '+Math.min(10,g.next+1),180,560)}
+ if(g.phase=='done'){x.font='800 18px sans-serif';x.fillStyle='#ffd86b';x.fillText('The Lion emerges from the stars',180,560)}
+ if(g.flash>0){x.fillStyle=`rgba(255,80,160,${g.flash})`;x.fillRect(0,0,360,640)}
+}
 /* ---------- result ---------- */
-function finish(sc){
+function finish(sc,label){
  const P=store.get(),d=UTC(),first=P.played[d]===undefined;
  if(first){P.played[d]=sc;P.days++;if(P.streakOverride)P.streak=Math.min(999999,P.streak+1);else P.streak=P.last==UTC(-1)?P.streak+1:1;P.last=d;store.set(P)}
- showResult(sc,first)}
-function showResult(sc,first){
+ showResult(sc,first,label)}
+function showResult(sc,first,label){
  const P=store.get(),dd=day(),s=S[stg(dd)],sc0=first?sc:P.played[UTC()];
- let h=`<h2 style="margin-top:20px">Mission complete</h2><div style="font-size:56px;font-weight:800;letter-spacing:-2px">${sc}</div>`;
+ let h=`<h2 style="margin-top:20px">Mission complete</h2><div style="font-size:42px;font-weight:800;letter-spacing:-2px">${label||sc}</div>`;
  if(!first)h+='<p class="mut">Practice run. Your first score of the day is the one that counts.</p>';
  h+='<div class="card">'+['World',P.cc,P.rg].map((t,k)=>{const b=board(k,sc0);return`<div class="row"><span>${t}</span><b>#${b.rank.toLocaleString()} <span class="mut">top ${Math.max(1,Math.round(100*b.rank/b.N))}%</span></b></div>`}).join('')+'</div>';
  h+=`<p>${P.streak}-day streak. Day ${dd}: ${s[1]}.</p><button class="b" id="sh">Share result</button><button class="b g" id="bk">Watch the zoom out</button>`;
  $('#rz').innerHTML=h;show('rz');
- const b2=board(2,sc0),txt=`Long Way Out, day ${dd}: ${s[1]}\nScore ${sc0}, #${b2.rank} in ${P.rg}`;
+  const b2=board(2,sc0),txt=`Long Way Out, day ${dd}: ${s[1]}\nScore ${label||sc0}, #${b2.rank} in ${P.rg}`;
  $('#sh').onclick=async()=>{try{if(navigator.share)await navigator.share({text:txt});else{await navigator.clipboard.writeText(txt);$('#sh').textContent='Copied'}}catch(e){}};
  $('#bk').onclick=()=>{show('hm');refresh()}}
 
